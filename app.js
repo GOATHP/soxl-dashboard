@@ -98,7 +98,31 @@ function renderTable() {
   }
 }
 
-function renderAll() { renderTable(); renderSelected(); draw(); }
+function renderBars() {
+  const box = $('bars'); box.replaceChildren();
+  if (!DATA || !positions.length) return;
+  const items = positions.map((p, i) => ({p, i, pct: calc(p, DATA.price).pct})).sort((a, b) => b.pct - a.pct);
+  const lo = Math.min(0, ...items.map((d) => d.pct)), hi = Math.max(0, ...items.map((d) => d.pct));
+  const span = (hi - lo) || 1;
+  const pos = (v) => ((v - lo) / span) * 100;
+  for (const {p, i, pct} of items) {
+    const row = document.createElement('div'); row.className = 'bar' + (i === selected ? ' sel' : '');
+    row.tabIndex = 0; row.setAttribute('role', 'button'); row.setAttribute('aria-label', `${p.name} 수익률 ${sPct(pct)}`);
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.name;
+    const tr = document.createElement('div'); tr.className = 'track';
+    const z = document.createElement('div'); z.className = 'zero'; z.style.left = pos(0) + '%';
+    const f = document.createElement('div'); f.className = 'fill ' + (pct < 0 ? 'neg' : 'pos');
+    const a = pos(Math.min(0, pct)), b = pos(Math.max(0, pct));
+    f.style.left = a + '%'; f.style.width = Math.max(b - a, 0.5) + '%';
+    const v = document.createElement('span'); v.className = 'val ' + (pct < 0 ? 'bad' : 'ok'); v.textContent = sPct(pct);
+    tr.append(z, f); row.append(nm, tr, v);
+    const pick = () => { selected = i; renderAll(); };
+    row.addEventListener('click', pick); row.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
+    box.append(row);
+  }
+}
+
+function renderAll() { renderTable(); renderBars(); renderSelected(); draw(); }
 
 $('add-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -122,7 +146,26 @@ $('copy-link').addEventListener('click', () => {
 
 window.addEventListener('hashchange', () => { if (window.FIREBASE_CONFIG) return; const h = fromHash(); if (h && h.length) { positions = h; selected = 0; save(); renderAll(); } });
 
-fetch('data/soxl.json', {cache: 'no-cache'}).then((r) => r.json()).then((d) => {
+function liveQuote(d) {
+  const key = window.FINNHUB_KEY;
+  if (!key) return Promise.resolve(d);
+  return fetch('https://finnhub.io/api/v1/quote?symbol=SOXL&token=' + encodeURIComponent(key))
+    .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+    .then((q) => {
+      if (!(q && q.c > 0 && q.t)) return d;
+      const day = new Date(q.t * 1000).toISOString().slice(0, 10);
+      const daily = d.daily.filter((r) => r.date < day).concat([{date: day, close: q.c}]);
+      $('live-badge').hidden = false;
+      $('refresh-note').textContent = '페이지를 여는 동안 1분마다 새로 불러옵니다.';
+      return {...d, price: q.c, prevClose: q.pc, change: q.d, changePct: q.dp,
+        asOf: new Date(q.t * 1000).toISOString(), source: 'Finnhub', daily,
+        low52: Math.min(d.low52, q.l || q.c), high52: Math.max(d.high52, q.h || q.c)};
+    })
+    .catch(() => d);
+}
+
+let BASE = null;
+function applyQuote(d) {
   DATA = d;
   const p = d.price;
   set('price', usd(p)); set('chg', sUsd(d.change), d.change); set('chgpct', sPct(d.changePct), d.changePct);
@@ -131,6 +174,10 @@ fetch('data/soxl.json', {cache: 'no-cache'}).then((r) => r.json()).then((d) => {
   const kst = new Date(new Date(d.asOf).getTime() + 9 * 3600e3);
   set('asof', d3.utcFormat('%Y년 %-m월 %-d일 %H:%M')(kst)); set('src', d.source);
   renderAll();
+}
+fetch('data/soxl.json', {cache: 'no-cache'}).then((r) => r.json()).then((d) => { BASE = d; return liveQuote(d); }).then((d) => {
+  applyQuote(d);
+  if (window.FINNHUB_KEY) setInterval(() => { if (!document.hidden && BASE) liveQuote(BASE).then(applyQuote); }, 60000);
 }).catch(() => { $('chart').textContent = '시세 데이터를 불러오지 못했습니다.'; renderTable(); });
 
 function drawChart() {
