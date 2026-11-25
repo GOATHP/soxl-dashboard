@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SOXL 포지션</title>
-<meta name="description" content="SOXL 36주 보유 현황: 현재가, 평가손익, 일별 종가와 52주 범위">
+<title>SOXL 포지션 비교</title>
+<meta name="description" content="SOXL 보유자끼리 평단과 손익을 비교하는 페이지">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
@@ -51,6 +51,24 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .row { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-block: 6px; font-variant-numeric: tabular-nums; }
 .row span:first-child { color: var(--muted); }
 .warnbox { border-left: 3px solid var(--warn); padding-left: 14px; }
+.addform { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end; }
+@media (max-width: 560px) { .addform { grid-template-columns: 1fr 1fr; } .addform .field:first-child { grid-column: 1 / -1; } .addform .btn { grid-column: 1 / -1; } }
+.addform input { font-size: 15px; padding: 8px 10px; }
+.btn { font: inherit; font-size: 14px; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.btn.x { padding: 2px 8px; font-size: 13px; color: var(--muted); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { padding: 10px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+th { font-size: 12px; font-weight: 500; color: var(--muted); }
+tbody tr { cursor: pointer; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--grid); }
+tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); font-weight: 600; }
+.actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 footer { font-size: 12px; color: var(--muted); }
 </style>
 </head>
@@ -58,8 +76,8 @@ footer { font-size: 12px; color: var(--muted); }
 <main class="wrap">
   <header>
     <div class="eyebrow">SOXL · Direxion 반도체 3배 레버리지 ETF</div>
-    <h1>SOXL 포지션</h1>
-    <p class="lede">36주를 평단 <span class="num">$118.04</span>에 보유 중이며, 최근 종가 기준 평가손익은 <b id="lede-pnl" class="num">—</b> (<b id="lede-pct" class="num">—</b>)입니다. 본전까지는 주가가 <b id="lede-be" class="num">—</b> 올라야 합니다.</p>
+    <h1>SOXL 포지션 비교</h1>
+    <p class="lede"><b id="sel-name">—</b>님은 <span id="sel-shares" class="num">—</span>주를 평단 <span id="sel-avg" class="num">—</span>에 보유 중이며, 최근 종가 기준 평가손익은 <b id="lede-pnl" class="num">—</b> (<b id="lede-pct" class="num">—</b>)입니다. 본전까지 필요한 상승률은 <b id="lede-be" class="num">—</b>입니다.</p>
     <p class="asof">시세 기준: <span id="asof">—</span> (한국시간). 출처: <span id="src">—</span>. 평일 미국 장 마감 후 하루 한 번 자동 갱신됩니다.</p>
   </header>
 
@@ -68,16 +86,38 @@ footer { font-size: 12px; color: var(--muted); }
       <span class="sub">전일 대비 <span id="chg">—</span> (<span id="chgpct">—</span>)</span></div>
     <div class="card"><span class="label">평가손익</span><span class="big" id="pnl">—</span>
       <span class="sub">수익률 <span id="pnlpct">—</span></span></div>
-    <div class="card"><span class="label">평가금액 (36주)</span><span class="big" id="mv">—</span>
-      <span class="sub">매입금액 $4,249.44</span></div>
+    <div class="card"><span class="label">평가금액 (<span id="mv-shares">—</span>주)</span><span class="big" id="mv">—</span>
+      <span class="sub">매입금액 <span id="cost">—</span></span></div>
     <div class="card"><span class="label">당일 손익 (마지막 거래일)</span><span class="big" id="daypnl">—</span>
-      <span class="sub">36주 × 전일 대비 변동</span></div>
+      <span class="sub">보유 주식수 × 전일 대비 변동</span></div>
   </div>
 
+
+  <section id="compare">
+    <h2>보유자 비교</h2>
+    <p class="note">이름, 주식수, 평단을 넣고 추가하면 같은 시세로 손익을 비교합니다. 줄을 누르면 위 카드가 그 사람 기준으로 바뀝니다. 목록은 이 브라우저에만 저장되고, "비교 링크 복사"로 만든 링크를 보내면 상대도 같은 목록을 볼 수 있습니다.</p>
+    <form id="add-form" class="addform" autocomplete="off">
+      <label class="field" for="f-name"><span class="label">이름</span><input id="f-name" type="text" maxlength="20" placeholder="예: 민수" required></label>
+      <label class="field" for="f-shares"><span class="label">주식수</span><input id="f-shares" type="number" step="any" min="0" inputmode="decimal" placeholder="예: 50" required></label>
+      <label class="field" for="f-avg"><span class="label">평단 (USD)</span><input id="f-avg" type="number" step="0.01" min="0" inputmode="decimal" placeholder="예: 95.20" required></label>
+      <button type="submit" class="btn primary">추가</button>
+    </form>
+    <div class="tablewrap">
+      <table id="cmp-table">
+        <thead><tr><th>이름</th><th>주식수</th><th>평단</th><th>매입금액</th><th>평가금액</th><th>평가손익</th><th>수익률</th><th>본전까지</th><th></th></tr></thead>
+        <tbody id="cmp-body"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn" id="copy-link">비교 링크 복사</button>
+      <span class="note" id="copy-msg" aria-live="polite"></span>
+    </div>
+  </section>
+
   <section>
-    <h2>일별 종가와 내 평단</h2>
+    <h2>일별 종가와 각자의 평단</h2>
     <div class="chart" id="chart"></div>
-    <p class="note">점선은 평단 $118.04입니다. 비어 있는 날짜는 선으로만 이어져 있습니다.</p>
+    <p class="note">점선은 비교 목록에 있는 사람들의 평단입니다. 굵은 점선이 지금 선택한 사람입니다. 비어 있는 날짜는 선으로만 이어져 있습니다.</p>
   </section>
 
   <section>
@@ -88,7 +128,7 @@ footer { font-size: 12px; color: var(--muted); }
 
   <section>
     <h2>현재가 직접 입력해서 계산하기</h2>
-    <p class="note">증권 앱에서 본 지금 가격을 넣으면 36주 기준 손익을 바로 계산합니다. 입력값은 저장되지 않습니다.</p>
+    <p class="note">증권 앱에서 본 지금 가격을 넣으면 선택한 사람의 손익을 바로 계산합니다.</p>
     <div class="calc">
       <label class="field" for="whatif-price"><span class="label">SOXL 가격 (USD)</span>
         <input id="whatif-price" type="number" inputmode="decimal" step="0.01" min="0" placeholder="예: 33.39"></label>
@@ -105,108 +145,6 @@ footer { font-size: 12px; color: var(--muted); }
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script>
-const SHARES = 36, AVG = 118.04;
-const usd = (v) => (v < 0 ? '-' : '') + '$' + d3.format(',.2f')(Math.abs(v));
-const sUsd = (v) => (v > 0 ? '+' : v < 0 ? '-' : '') + '$' + d3.format(',.2f')(Math.abs(v));
-const sPct = (v) => (v > 0 ? '+' : '') + d3.format('.2f')(v) + '%';
-const $ = (id) => document.getElementById(id);
-const set = (id, text, tone) => { const el = $(id); if (!el) return; el.textContent = text;
-  if (tone !== undefined) { el.classList.toggle('bad', tone < 0); el.classList.toggle('ok', tone > 0); } };
-let DATA = null;
-
-fetch('data/soxl.json', {cache: 'no-cache'}).then((r) => r.json()).then((d) => {
-  DATA = d;
-  const p = d.price, pnl = SHARES * (p - AVG), pct = (p / AVG - 1) * 100;
-  set('price', usd(p)); set('chg', sUsd(d.change), d.change); set('chgpct', sPct(d.changePct), d.changePct);
-  set('pnl', sUsd(pnl), pnl); set('lede-pnl', sUsd(pnl), pnl);
-  set('pnlpct', sPct(pct), pct); set('lede-pct', sPct(pct), pct);
-  set('lede-be', p >= AVG ? '0%' : sPct((AVG / p - 1) * 100));
-  set('mv', usd(SHARES * p)); set('daypnl', sUsd(SHARES * d.change), d.change);
-  set('low52', usd(d.low52)); set('high52', usd(d.high52));
-  set('rangepos', d3.format('.1f')((p - d.low52) / (d.high52 - d.low52) * 100) + '%');
-  const kst = new Date(new Date(d.asOf).getTime() + 9 * 3600e3);
-  set('asof', d3.utcFormat('%Y년 %-m월 %-d일 %H:%M')(kst)); set('src', d.source);
-  draw();
-}).catch(() => { $('chart').textContent = '시세 데이터를 불러오지 못했습니다.'; });
-
-function drawChart() {
-  const el = $('chart'); el.replaceChildren();
-  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.append(tip);
-  const parse = d3.utcParse('%Y-%m-%d');
-  const rows = DATA.daily.map((r) => ({t: parse(r.date), close: +r.close})).filter((r) => r.t);
-  const W = el.clientWidth || 600, H = 300, m = {top: 16, right: 12, bottom: 28, left: 48};
-  const x = d3.scaleUtc().domain(d3.extent(rows, (r) => r.t)).range([m.left, W - m.right]);
-  const y = d3.scaleLinear().domain([0, Math.max(d3.max(rows, (r) => r.close), AVG) * 1.05]).nice().range([H - m.bottom, m.top]);
-  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H)
-    .attr('role', 'img').attr('aria-label', 'SOXL 일별 종가 선 그래프와 평단 118.04달러 기준선');
-  svg.append('g').attr('transform', `translate(${m.left},0)`)
-    .call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.left - m.right)).tickFormat((v) => '$' + v))
-    .call((g) => { g.select('.domain').remove(); g.selectAll('line').style('stroke', 'var(--grid)'); });
-  svg.append('g').attr('transform', `translate(0,${H - m.bottom})`)
-    .call(d3.axisBottom(x).ticks(W < 480 ? 4 : 7).tickFormat(d3.utcFormat('%-m/%-d')))
-    .call((g) => { g.selectAll('.domain, line').style('stroke', 'var(--line)'); });
-  svg.append('path').datum(rows).attr('d', d3.area().x((r) => x(r.t)).y0(y(0)).y1((r) => y(r.close)))
-    .style('fill', 'var(--accent)').style('opacity', 0.08);
-  svg.append('path').datum(rows).attr('d', d3.line().x((r) => x(r.t)).y((r) => y(r.close)))
-    .style('fill', 'none').style('stroke', 'var(--accent)').style('stroke-width', 2);
-  svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y(AVG)).attr('y2', y(AVG))
-    .style('stroke', 'var(--ref)').style('stroke-dasharray', '4 4').style('stroke-width', 1.5);
-  svg.append('text').attr('x', W - m.right).attr('y', y(AVG) - 6).attr('text-anchor', 'end').text('평단 $118.04');
-  const last = rows[rows.length - 1];
-  svg.append('circle').attr('cx', x(last.t)).attr('cy', y(last.close)).attr('r', 4).style('fill', 'var(--accent)');
-  const dot = svg.append('circle').attr('r', 4).style('fill', 'var(--accent)').style('stroke', 'var(--bg)').style('stroke-width', 2).attr('visibility', 'hidden');
-  const bis = d3.bisector((r) => r.t).center;
-  svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom)
-    .style('fill', 'transparent')
-    .on('pointermove', (ev) => {
-      const r = rows[bis(rows, x.invert(d3.pointer(ev)[0]))];
-      dot.attr('cx', x(r.t)).attr('cy', y(r.close)).attr('visibility', 'visible');
-      tip.textContent = `${d3.utcFormat('%Y-%m-%d')(r.t)} · 종가 ${usd(r.close)} · 평단 대비 ${sPct((r.close / AVG - 1) * 100)}`;
-      tip.hidden = false;
-      const tw = tip.offsetWidth;
-      tip.style.left = Math.min(Math.max(x(r.t) - tw / 2, 0), W - tw) + 'px';
-      tip.style.top = Math.max(y(r.close) - 40, 0) + 'px';
-    })
-    .on('pointerleave', () => { tip.hidden = true; dot.attr('visibility', 'hidden'); });
-}
-
-function drawRange() {
-  const el = $('range'); el.replaceChildren();
-  const lo = DATA.low52, hi = DATA.high52, p = DATA.price;
-  const W = el.clientWidth || 600, H = 92, m = {l: 16, r: 16}, by = 46;
-  const x = d3.scaleLinear().domain([lo, hi]).range([m.l, W - m.r]).clamp(true);
-  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H)
-    .attr('role', 'img').attr('aria-label', '52주 가격 범위에서 현재가와 평단의 위치');
-  svg.append('rect').attr('x', m.l).attr('y', by - 4).attr('width', W - m.l - m.r).attr('height', 8).attr('rx', 4).style('fill', 'var(--grid)');
-  svg.append('rect').attr('x', m.l).attr('y', by - 4).attr('width', Math.max(x(p) - m.l, 2)).attr('height', 8).attr('rx', 4).style('fill', 'var(--accent)');
-  const mark = (v, label, up, color) => {
-    svg.append('line').attr('x1', x(v)).attr('x2', x(v)).attr('y1', by - 12).attr('y2', by + 12).style('stroke', color).style('stroke-width', 2);
-    const t = svg.append('text').attr('y', up ? by - 18 : by + 28).attr('text-anchor', 'middle').text(label);
-    const w = t.node().getComputedTextLength();
-    t.attr('x', Math.min(Math.max(x(v), m.l + w / 2), W - m.r - w / 2));
-  };
-  mark(p, `현재 ${usd(p)}`, true, 'var(--accent)');
-  mark(AVG, `평단 ${usd(AVG)}`, false, 'var(--ref)');
-  svg.append('text').attr('x', m.l).attr('y', H - 4).text(usd(lo));
-  svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').text(usd(hi));
-}
-
-function draw() { if (DATA) { drawChart(); drawRange(); } }
-let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
-
-$('whatif-price').addEventListener('input', (e) => {
-  const v = parseFloat(e.target.value), out = $('whatif'); out.replaceChildren();
-  if (!(v > 0)) { const p = document.createElement('p'); p.className = 'note'; p.textContent = '가격을 입력하면 평가금액, 손익, 수익률이 여기에 나옵니다.'; out.append(p); return; }
-  const pnl = SHARES * (v - AVG), pct = (v / AVG - 1) * 100;
-  for (const [k, val, tone] of [['평가금액', usd(SHARES * v), 0], ['평가손익', sUsd(pnl), pnl], ['수익률', sPct(pct), pct],
-    ['본전까지', v >= AVG ? '도달' : sPct((AVG / v - 1) * 100), 0]]) {
-    const r = document.createElement('div'); r.className = 'row';
-    const a = document.createElement('span'); a.textContent = k;
-    const b = document.createElement('span'); b.textContent = val; b.className = tone < 0 ? 'bad' : tone > 0 ? 'ok' : '';
-    r.append(a, b); out.append(r);
-  }
-});
-</script>
+<script src="app.js"></script>
 </body>
 </html>

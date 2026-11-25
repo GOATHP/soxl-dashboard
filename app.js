@@ -1,0 +1,206 @@
+const DEFAULT = [{name: 'GOATHP', shares: 36, avg: 118.04}];
+const KEY = 'soxl-positions-v1';
+const usd = (v) => (v < 0 ? '-' : '') + '$' + d3.format(',.2f')(Math.abs(v));
+const sUsd = (v) => (v > 0 ? '+' : v < 0 ? '-' : '') + '$' + d3.format(',.2f')(Math.abs(v));
+const sPct = (v) => (v > 0 ? '+' : '') + d3.format('.2f')(v) + '%';
+const fmtShares = (v) => d3.format(',')(+v.toFixed(4));
+const $ = (id) => document.getElementById(id);
+const set = (id, text, tone) => { const el = $(id); if (!el) return; el.textContent = text;
+  if (tone !== undefined) { el.classList.toggle('bad', tone < 0); el.classList.toggle('ok', tone > 0); } };
+
+let DATA = null;
+let positions = load();
+let selected = 0;
+
+function clean(list) {
+  return (Array.isArray(list) ? list : [])
+    .map((p) => ({name: String(p.name || '').slice(0, 20).trim(), shares: +p.shares, avg: +p.avg}))
+    .filter((p) => p.name && p.shares > 0 && p.avg > 0).slice(0, 50);
+}
+function fromHash() {
+  const m = /^#p=(.+)$/.exec(location.hash);
+  if (!m) return null;
+  try {
+    return clean(decodeURIComponent(m[1]).split(';').map((s) => { const [name, shares, avg] = s.split(','); return {name, shares, avg}; }));
+  } catch (e) { return null; }
+}
+function load() {
+  const h = fromHash();
+  if (h && h.length) return h;
+  try { const v = clean(JSON.parse(localStorage.getItem(KEY))); if (v.length) return v; } catch (e) {}
+  return DEFAULT.slice();
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(positions)); } catch (e) {} }
+function shareUrl() {
+  const enc = positions.map((p) => [p.name.replace(/[,;]/g, ' '), p.shares, p.avg].join(',')).join(';');
+  return location.origin + location.pathname + '#p=' + encodeURIComponent(enc);
+}
+
+function calc(p, price) {
+  const cost = p.shares * p.avg, mv = p.shares * price;
+  return {cost, mv, pnl: mv - cost, pct: (price / p.avg - 1) * 100, be: price >= p.avg ? 0 : (p.avg / price - 1) * 100};
+}
+
+function renderSelected() {
+  if (!DATA) return;
+  const p = positions[selected] || positions[0];
+  if (!p) return;
+  const c = calc(p, DATA.price);
+  set('sel-name', p.name); set('sel-shares', fmtShares(p.shares)); set('sel-avg', usd(p.avg));
+  set('pnl', sUsd(c.pnl), c.pnl); set('lede-pnl', sUsd(c.pnl), c.pnl);
+  set('pnlpct', sPct(c.pct), c.pct); set('lede-pct', sPct(c.pct), c.pct);
+  set('lede-be', c.be ? sPct(c.be) : '없음(이미 평단 위)');
+  set('mv', usd(c.mv)); set('mv-shares', fmtShares(p.shares)); set('cost', usd(c.cost));
+  set('daypnl', sUsd(p.shares * DATA.change), DATA.change);
+  renderWhatIf();
+}
+
+function renderTable() {
+  const body = $('cmp-body'); body.replaceChildren();
+  if (!positions.length) {
+    const tr = document.createElement('tr'); const td = document.createElement('td');
+    td.colSpan = 9; td.className = 'note'; td.textContent = '위에서 이름, 주식수, 평단을 넣고 첫 보유자를 추가하세요.';
+    tr.append(td); body.append(tr); return;
+  }
+  const price = DATA ? DATA.price : null;
+  const order = positions.map((p, i) => ({p, i, c: price ? calc(p, price) : null}))
+    .sort((a, b) => (a.c && b.c ? b.c.pct - a.c.pct : 0));
+  for (const {p, i, c} of order) {
+    const tr = document.createElement('tr');
+    if (i === selected) tr.className = 'sel';
+    const cells = [
+      [p.name], [fmtShares(p.shares)], [usd(p.avg)], [usd(p.shares * p.avg)],
+      [c ? usd(c.mv) : '—'], [c ? sUsd(c.pnl) : '—', c && c.pnl], [c ? sPct(c.pct) : '—', c && c.pct], [c ? (c.be ? sPct(c.be) : '도달') : '—'],
+    ];
+    for (const [text, tone] of cells) {
+      const td = document.createElement('td'); td.textContent = text;
+      if (tone) td.className = tone < 0 ? 'bad' : 'ok';
+      tr.append(td);
+    }
+    const td = document.createElement('td');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn x'; b.textContent = '삭제';
+    b.setAttribute('aria-label', p.name + ' 삭제');
+    b.addEventListener('click', (e) => { e.stopPropagation(); positions.splice(i, 1); if (selected >= positions.length) selected = 0; save(); renderAll(); });
+    td.append(b); tr.append(td);
+    tr.tabIndex = 0;
+    const pick = () => { selected = i; renderAll(); };
+    tr.addEventListener('click', pick);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
+    body.append(tr);
+  }
+}
+
+function renderAll() { renderTable(); renderSelected(); draw(); }
+
+$('add-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const p = clean([{name: $('f-name').value, shares: $('f-shares').value, avg: $('f-avg').value}])[0];
+  if (!p) return;
+  positions.push(p); selected = positions.length - 1; save();
+  e.target.reset(); renderAll();
+});
+
+$('copy-link').addEventListener('click', () => {
+  const url = shareUrl();
+  const done = (msg) => set('copy-msg', msg);
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => done('링크를 복사했습니다.'), () => done(url));
+  else done(url);
+});
+
+window.addEventListener('hashchange', () => { const h = fromHash(); if (h && h.length) { positions = h; selected = 0; save(); renderAll(); } });
+
+fetch('data/soxl.json', {cache: 'no-cache'}).then((r) => r.json()).then((d) => {
+  DATA = d;
+  const p = d.price;
+  set('price', usd(p)); set('chg', sUsd(d.change), d.change); set('chgpct', sPct(d.changePct), d.changePct);
+  set('low52', usd(d.low52)); set('high52', usd(d.high52));
+  set('rangepos', d3.format('.1f')((p - d.low52) / (d.high52 - d.low52) * 100) + '%');
+  const kst = new Date(new Date(d.asOf).getTime() + 9 * 3600e3);
+  set('asof', d3.utcFormat('%Y년 %-m월 %-d일 %H:%M')(kst)); set('src', d.source);
+  renderAll();
+}).catch(() => { $('chart').textContent = '시세 데이터를 불러오지 못했습니다.'; renderTable(); });
+
+function drawChart() {
+  const el = $('chart'); el.replaceChildren();
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.append(tip);
+  const parse = d3.utcParse('%Y-%m-%d');
+  const rows = DATA.daily.map((r) => ({t: parse(r.date), close: +r.close})).filter((r) => r.t);
+  const sel = positions[selected];
+  const avgs = positions.map((p) => p.avg);
+  const W = el.clientWidth || 600, H = 300, m = {top: 16, right: 12, bottom: 28, left: 48};
+  const x = d3.scaleUtc().domain(d3.extent(rows, (r) => r.t)).range([m.left, W - m.right]);
+  const y = d3.scaleLinear().domain([0, Math.max(d3.max(rows, (r) => r.close), ...avgs, 1) * 1.05]).nice().range([H - m.bottom, m.top]);
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H)
+    .attr('role', 'img').attr('aria-label', 'SOXL 일별 종가 선 그래프와 보유자별 평단 기준선');
+  svg.append('g').attr('transform', `translate(${m.left},0)`)
+    .call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.left - m.right)).tickFormat((v) => '$' + v))
+    .call((g) => { g.select('.domain').remove(); g.selectAll('line').style('stroke', 'var(--grid)'); });
+  svg.append('g').attr('transform', `translate(0,${H - m.bottom})`)
+    .call(d3.axisBottom(x).ticks(W < 480 ? 4 : 7).tickFormat(d3.utcFormat('%-m/%-d')))
+    .call((g) => { g.selectAll('.domain, line').style('stroke', 'var(--line)'); });
+  svg.append('path').datum(rows).attr('d', d3.area().x((r) => x(r.t)).y0(y(0)).y1((r) => y(r.close)))
+    .style('fill', 'var(--accent)').style('opacity', 0.08);
+  svg.append('path').datum(rows).attr('d', d3.line().x((r) => x(r.t)).y((r) => y(r.close)))
+    .style('fill', 'none').style('stroke', 'var(--accent)').style('stroke-width', 2);
+  positions.forEach((p) => {
+    const on = p === sel;
+    svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y(p.avg)).attr('y2', y(p.avg))
+      .style('stroke', 'var(--ref)').style('stroke-dasharray', '4 4').style('stroke-width', on ? 2 : 1).style('opacity', on ? 1 : 0.5);
+  });
+  if (sel) svg.append('text').attr('x', W - m.right).attr('y', y(sel.avg) - 6).attr('text-anchor', 'end').text(`${sel.name} 평단 ${usd(sel.avg)}`);
+  const last = rows[rows.length - 1];
+  svg.append('circle').attr('cx', x(last.t)).attr('cy', y(last.close)).attr('r', 4).style('fill', 'var(--accent)');
+  const dot = svg.append('circle').attr('r', 4).style('fill', 'var(--accent)').style('stroke', 'var(--bg)').style('stroke-width', 2).attr('visibility', 'hidden');
+  const bis = d3.bisector((r) => r.t).center;
+  svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom)
+    .style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const r = rows[bis(rows, x.invert(d3.pointer(ev)[0]))];
+      dot.attr('cx', x(r.t)).attr('cy', y(r.close)).attr('visibility', 'visible');
+      tip.textContent = `${d3.utcFormat('%Y-%m-%d')(r.t)} · 종가 ${usd(r.close)}` + (sel ? ` · ${sel.name} 평단 대비 ${sPct((r.close / sel.avg - 1) * 100)}` : '');
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = Math.min(Math.max(x(r.t) - tw / 2, 0), W - tw) + 'px';
+      tip.style.top = Math.max(y(r.close) - 40, 0) + 'px';
+    })
+    .on('pointerleave', () => { tip.hidden = true; dot.attr('visibility', 'hidden'); });
+}
+
+function drawRange() {
+  const el = $('range'); el.replaceChildren();
+  const lo = DATA.low52, hi = DATA.high52, p = DATA.price, sel = positions[selected];
+  const W = el.clientWidth || 600, H = 92, m = {l: 16, r: 16}, by = 46;
+  const x = d3.scaleLinear().domain([lo, hi]).range([m.l, W - m.r]).clamp(true);
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H)
+    .attr('role', 'img').attr('aria-label', '52주 가격 범위에서 현재가와 평단의 위치');
+  svg.append('rect').attr('x', m.l).attr('y', by - 4).attr('width', W - m.l - m.r).attr('height', 8).attr('rx', 4).style('fill', 'var(--grid)');
+  svg.append('rect').attr('x', m.l).attr('y', by - 4).attr('width', Math.max(x(p) - m.l, 2)).attr('height', 8).attr('rx', 4).style('fill', 'var(--accent)');
+  const mark = (v, label, up, color) => {
+    svg.append('line').attr('x1', x(v)).attr('x2', x(v)).attr('y1', by - 12).attr('y2', by + 12).style('stroke', color).style('stroke-width', 2);
+    const t = svg.append('text').attr('y', up ? by - 18 : by + 28).attr('text-anchor', 'middle').text(label);
+    const w = t.node().getComputedTextLength();
+    t.attr('x', Math.min(Math.max(x(v), m.l + w / 2), W - m.r - w / 2));
+  };
+  mark(p, `현재 ${usd(p)}`, true, 'var(--accent)');
+  if (sel) mark(sel.avg, `${sel.name} 평단 ${usd(sel.avg)}`, false, 'var(--ref)');
+  svg.append('text').attr('x', m.l).attr('y', H - 4).text(usd(lo));
+  svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').text(usd(hi));
+}
+
+function draw() { if (DATA) { drawChart(); drawRange(); } }
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
+
+function renderWhatIf() {
+  const v = parseFloat($('whatif-price').value), out = $('whatif'), p = positions[selected];
+  out.replaceChildren();
+  if (!(v > 0) || !p) { const n = document.createElement('p'); n.className = 'note'; n.textContent = '가격을 입력하면 선택한 사람의 평가금액, 손익, 수익률이 여기에 나옵니다.'; out.append(n); return; }
+  const c = calc(p, v);
+  for (const [k, val, tone] of [['대상', p.name, 0], ['평가금액', usd(c.mv), 0], ['평가손익', sUsd(c.pnl), c.pnl], ['수익률', sPct(c.pct), c.pct],
+    ['본전까지', c.be ? sPct(c.be) : '도달', 0]]) {
+    const r = document.createElement('div'); r.className = 'row';
+    const a = document.createElement('span'); a.textContent = k;
+    const b = document.createElement('span'); b.textContent = val; b.className = tone < 0 ? 'bad' : tone > 0 ? 'ok' : '';
+    r.append(a, b); out.append(r);
+  }
+}
+$('whatif-price').addEventListener('input', renderWhatIf);
