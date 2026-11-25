@@ -142,13 +142,21 @@ function renderCouldHave() {
   const box = $('goods'); if (!box) return;
   box.replaceChildren();
   const p = positions[selected];
-  if (!DATA || !p) { set('ch-lede', '보유자를 추가하면 여기에 나옵니다.'); set('ch-total', ''); return; }
-  const c = calc(p, DATA.price);
-  const amt = Math.abs(c.pnl) * KRW;
-  const lost = c.pnl < 0;
-  set('ch-title', lost ? '그 돈으로 할 수 있었던 것' : '번 돈으로 할 수 있는 것');
-  set('ch-lede', lost ? `${p.name}님이 지금까지 잃은 ${won(amt)}이면 이만큼 할 수 있었어요.`
-                      : `${p.name}님이 지금까지 번 ${won(amt)}이면 이만큼 할 수 있어요.`);
+  const typed = parseFloat($('amt-input').value);
+  let amt;
+  if (typed > 0) {
+    amt = $('amt-cur').value === 'usd' ? typed * KRW : typed;
+    set('ch-title', '그 돈으로 할 수 있는 것');
+    set('ch-lede', `${won(amt)}이면 이만큼 할 수 있어요.`);
+  } else {
+    if (!DATA || !p) { box.replaceChildren(); set('ch-lede', '보유자를 추가하거나 금액을 입력하면 여기에 나옵니다.'); set('ch-total', ''); return; }
+    const c = calc(p, DATA.price);
+    amt = Math.abs(c.pnl) * KRW;
+    const lost = c.pnl < 0;
+    set('ch-title', lost ? '그 돈으로 할 수 있었던 것' : '번 돈으로 할 수 있는 것');
+    set('ch-lede', lost ? `${p.name}님이 지금까지 잃은 ${won(amt)}이면 이만큼 할 수 있었어요.`
+                        : `${p.name}님이 지금까지 번 ${won(amt)}이면 이만큼 할 수 있어요.`);
+  }
   for (const g of GOODS) {
     const n = amt / g.price;
     const d = document.createElement('div'); d.className = 'good';
@@ -158,6 +166,7 @@ function renderCouldHave() {
     const pr = document.createElement('span'); pr.className = 'pr'; pr.textContent = `개당 약 ${won(g.price)}`;
     d.append(ic, num, w, pr); box.append(d);
   }
+  if (!DATA) { set('ch-total', ''); return; }
   const totalLoss = positions.reduce((s, q) => s + Math.min(0, calc(q, DATA.price).pnl), 0) * -KRW;
   set('ch-total', positions.length > 1 && totalLoss > 0
     ? `비교 목록 전체가 잃은 돈은 ${won(totalLoss)}, 치킨 ${d3.format(',')(Math.floor(totalLoss / 23000))}마리입니다.` : '');
@@ -424,3 +433,8 @@ let pendingSelect = null;
     }, () => set('copy-msg', '공유 목록에 연결하지 못했습니다.'));
   } catch (e) { console.error(e); }
 })();
+
+$('amt-input').addEventListener('input', renderCouldHave);
+$('amt-cur').addEventListener('change', renderCouldHave);
+$('amt-form').addEventListener('submit', (e) => { e.preventDefault(); renderCouldHave(); });
+$('amt-clear').addEventListener('click', () => { $('amt-input').value = ''; renderCouldHave(); });

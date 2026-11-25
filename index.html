@@ -93,6 +93,9 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); font-weig
 .live { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--ok); color: var(--ok); margin-left: 6px; }
 .tv { height: 480px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
 @media (max-width: 560px) { .tv { height: 380px; } }
+.amtform { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 10px; align-items: end; max-width: 640px; }
+.amtform input { font-size: 17px; padding: 8px 10px; }
+.sel { font: inherit; font-size: 15px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); width: 100%; }
 .goods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 640px) { .goods { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .good { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
@@ -157,6 +160,13 @@ footer { font-size: 12px; color: var(--muted); }
 
   <section id="could-have">
     <h2 id="ch-title">그 돈으로 할 수 있었던 것</h2>
+    <form class="amtform" id="amt-form" autocomplete="off">
+      <label class="field" for="amt-input"><span class="label">금액 직접 입력</span>
+        <input id="amt-input" type="number" inputmode="decimal" min="0" step="any" placeholder="비우면 선택한 사람 손익"></label>
+      <label class="field" for="amt-cur"><span class="label">단위</span>
+        <select id="amt-cur" class="sel"><option value="krw">원</option><option value="usd">달러</option></select></label>
+      <button type="button" class="btn" id="amt-clear">지우기</button>
+    </form>
     <p class="lede" id="ch-lede">—</p>
     <div class="goods" id="goods"></div>
     <p class="note" id="ch-total"></p>
