@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 :root {
+  --c1: #2f5bd3; --c2: #d9480f; --c3: #2b8a3e; --c4: #ae3ec9; --c5: #0b7285; --c6: #e8590c; --c7: #5c7cfa; --c8: #c2255c;
   --bg: #f6f7f9; --panel: #ffffff; --fg: #14181f; --muted: #5b6472; --line: #e1e4ea;
   --accent: #2f5bd3; --grid: #eceef2; --ref: #8a93a3;
   --bad: #c8322f; --ok: #1d8a4e; --warn: #c98a0b;
@@ -17,6 +18,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #0f1218; --panel: #171b23; --fg: #e8ebf0; --muted: #9aa3b2; --line: #282e3a;
+    --c1: #7c9cff; --c2: #ff8a50; --c3: #5fd27a; --c4: #d38ff0; --c5: #3bc9db; --c6: #ffa94d; --c7: #a5b4fc; --c8: #f783ac;
     --accent: #7c9cff; --grid: #222835; --ref: #8a93a3; --bad: #ff6b66; --ok: #4cc884; --warn: #e5ad3b; color-scheme: dark; }
 }
 * { box-sizing: border-box; }
@@ -40,7 +42,7 @@ section { display: grid; gap: 12px; }
 .note { font-size: 13px; color: var(--muted); margin: 0; }
 .chart { position: relative; min-height: 300px; }
 .chart svg, .range svg { display: block; width: 100%; }
-svg text { fill: var(--muted); font-size: 12px; font-family: var(--sans); }
+svg text { fill: var(--muted); font-size: 12px; font-family: var(--sans); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
   box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 6px 10px; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .calc { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: start; }
@@ -96,7 +98,7 @@ footer { font-size: 12px; color: var(--muted); }
   </header>
 
   <div class="tiles">
-    <div class="card"><span class="label">현재가 (최근 종가)</span><span class="big" id="price">—</span>
+    <div class="card"><span class="label">현재가</span><span class="big" id="price">—</span>
       <span class="sub">전일 대비 <span id="chg">—</span> (<span id="chgpct">—</span>)</span></div>
     <div class="card"><span class="label">평가손익</span><span class="big" id="pnl">—</span>
       <span class="sub">수익률 <span id="pnlpct">—</span></span></div>
@@ -136,10 +138,16 @@ footer { font-size: 12px; color: var(--muted); }
     </div>
   </section>
 
+  <section id="returns">
+    <h2>모두의 수익률 추이</h2>
+    <div class="chart" id="ret-chart"></div>
+    <p class="note">각 선은 그날 종가로 계산한 그 사람의 수익률이고, 마지막 점과 이름 옆 숫자는 현재가 기준입니다. 0% 선 위는 수익, 아래는 손실입니다. 선이나 이름을 누르면 위 카드가 그 사람 기준으로 바뀝니다.</p>
+  </section>
+
   <section>
     <h2>일별 종가와 각자의 평단</h2>
     <div class="chart" id="chart"></div>
-    <p class="note">점선은 비교 목록에 있는 사람들의 평단입니다. 굵은 점선이 지금 선택한 사람입니다. 비어 있는 날짜는 선으로만 이어져 있습니다.</p>
+    <p class="note">색깔 점선은 사람마다의 평단입니다. 굵은 점선이 지금 선택한 사람입니다. 비어 있는 날짜는 선으로만 이어져 있습니다.</p>
   </section>
 
   <section>

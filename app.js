@@ -202,13 +202,20 @@ function drawChart() {
     .style('fill', 'var(--accent)').style('opacity', 0.08);
   svg.append('path').datum(rows).attr('d', d3.line().x((r) => x(r.t)).y((r) => y(r.close)))
     .style('fill', 'none').style('stroke', 'var(--accent)').style('stroke-width', 2);
-  positions.forEach((p) => {
+  positions.forEach((p, i) => {
     const on = p === sel;
     svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y(p.avg)).attr('y2', y(p.avg))
-      .style('stroke', 'var(--ref)').style('stroke-dasharray', '4 4').style('stroke-width', on ? 2 : 1).style('opacity', on ? 1 : 0.5);
+      .style('stroke', PCOL(i)).style('stroke-dasharray', '5 4').style('stroke-width', on ? 2.5 : 1.5);
   });
-  if (sel) svg.append('text').attr('x', W - m.right).attr('y', y(sel.avg) - 6).attr('text-anchor', 'end').text(`${sel.name} 평단 ${usd(sel.avg)}`);
+  const al = positions.map((p, i) => ({p, i, y: y(p.avg) - 5})).sort((a, b) => a.y - b.y);
+  for (let k = 1; k < al.length; k++) if (al[k].y - al[k - 1].y < 14) al[k].y = al[k - 1].y + 14;
+  for (const l of al) svg.append('text').attr('x', m.left + 6).attr('y', l.y).text(`${l.p.name} 평단 ${usd(l.p.avg)}`)
+    .style('fill', PCOL(l.i)).style('font-weight', l.p === sel ? 600 : 400);
   const last = rows[rows.length - 1];
+  svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y(DATA.price)).attr('y2', y(DATA.price))
+    .style('stroke', 'var(--accent)').style('stroke-width', 1).style('opacity', 0.6);
+  svg.append('text').attr('x', W - m.right).attr('y', y(DATA.price) - 6).attr('text-anchor', 'end').text(`현재가 ${usd(DATA.price)}`)
+    .style('fill', 'var(--accent)').style('font-weight', 600);
   svg.append('circle').attr('cx', x(last.t)).attr('cy', y(last.close)).attr('r', 4).style('fill', 'var(--accent)');
   const dot = svg.append('circle').attr('r', 4).style('fill', 'var(--accent)').style('stroke', 'var(--bg)').style('stroke-width', 2).attr('visibility', 'hidden');
   const bis = d3.bisector((r) => r.t).center;
@@ -247,7 +254,72 @@ function drawRange() {
   svg.append('text').attr('x', W - m.r).attr('y', H - 4).attr('text-anchor', 'end').text(usd(hi));
 }
 
-function draw() { if (DATA) { drawChart(); drawRange(); } }
+const PCOL = (i) => `var(--c${(i % 8) + 1})`;
+function drawReturns() {
+  const el = $('ret-chart'); el.replaceChildren();
+  if (!positions.length) { el.textContent = '비교할 보유자를 추가하면 여기에 수익률 추이가 나옵니다.'; return; }
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.append(tip);
+  const parse = d3.utcParse('%Y-%m-%d');
+  const days = DATA.daily.map((r) => ({t: parse(r.date), close: +r.close})).filter((r) => r.t);
+  const series = positions.map((p, i) => ({p, i, pts: days.map((d) => ({t: d.t, v: (d.close / p.avg - 1) * 100}))}));
+  const all = series.flatMap((s) => s.pts.map((d) => d.v));
+  const svgProbe = d3.select(el).append('svg').attr('width', 0).attr('height', 0);
+  const labW = Math.min(140, Math.max(...positions.map((p) => {
+    const t = svgProbe.append('text').text(`${p.name} ${sPct(-88.88)}`); const w = t.node().getComputedTextLength(); return w || 90; })) + 12);
+  svgProbe.remove();
+  const W = el.clientWidth || 600, H = 320, m = {top: 14, right: labW, bottom: 28, left: 52};
+  const x = d3.scaleUtc().domain(d3.extent(days, (d) => d.t)).range([m.left, W - m.right]);
+  const y = d3.scaleLinear().domain([Math.min(0, d3.min(all)), Math.max(0, d3.max(all))]).nice().range([H - m.bottom, m.top]);
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('height', H)
+    .attr('role', 'img').attr('aria-label', '보유자별 수익률 추이 선 그래프');
+  svg.append('g').attr('transform', `translate(${m.left},0)`)
+    .call(d3.axisLeft(y).ticks(6).tickSize(-(W - m.left - m.right)).tickFormat((v) => v + '%'))
+    .call((g) => { g.select('.domain').remove(); g.selectAll('line').style('stroke', 'var(--grid)'); });
+  svg.append('g').attr('transform', `translate(0,${H - m.bottom})`)
+    .call(d3.axisBottom(x).ticks(W < 480 ? 4 : 7).tickFormat(d3.utcFormat('%-m/%-d')))
+    .call((g) => { g.selectAll('.domain, line').style('stroke', 'var(--line)'); });
+  svg.append('line').attr('x1', m.left).attr('x2', W - m.right).attr('y1', y(0)).attr('y2', y(0)).style('stroke', 'var(--ref)').style('stroke-width', 1.5);
+  const line = d3.line().x((d) => x(d.t)).y((d) => y(d.v));
+  const pick = (i) => { selected = i; renderAll(); };
+  for (const s of series) {
+    const on = s.i === selected;
+    svg.append('path').datum(s.pts).attr('d', line).style('fill', 'none').style('stroke', PCOL(s.i))
+      .style('stroke-width', on ? 3 : 1.8).style('opacity', on ? 1 : 0.8).style('cursor', 'pointer').on('click', () => pick(s.i));
+    const last = s.pts[s.pts.length - 1];
+    svg.append('circle').attr('cx', x(last.t)).attr('cy', y(last.v)).attr('r', on ? 4.5 : 3.5).style('fill', PCOL(s.i));
+  }
+  // end labels, nudged apart
+  const labs = series.map((s) => ({s, y: y(s.pts[s.pts.length - 1].v)})).sort((a, b) => a.y - b.y);
+  for (let k = 1; k < labs.length; k++) if (labs[k].y - labs[k - 1].y < 15) labs[k].y = labs[k - 1].y + 15;
+  const over = labs.length ? labs[labs.length - 1].y - (H - m.bottom) : 0;
+  if (over > 0) labs.forEach((l) => { l.y -= over; });
+  for (const {s, y: ly} of labs) {
+    const v = s.pts[s.pts.length - 1].v;
+    svg.append('text').attr('x', W - m.right + 8).attr('y', ly + 4).text(`${s.p.name} ${sPct(v)}`)
+      .style('fill', PCOL(s.i)).style('font-weight', s.i === selected ? 600 : 400).style('cursor', 'pointer').on('click', () => pick(s.i));
+  }
+  const vline = svg.append('line').attr('y1', m.top).attr('y2', H - m.bottom).style('stroke', 'var(--line)').attr('visibility', 'hidden');
+  const bis = d3.bisector((d) => d.t).center;
+  svg.append('rect').attr('x', m.left).attr('y', m.top).attr('width', W - m.left - m.right).attr('height', H - m.top - m.bottom)
+    .style('fill', 'transparent').style('pointer-events', 'all').lower()
+    .on('pointermove', (ev) => {
+      const k = bis(days, x.invert(d3.pointer(ev)[0])); const d = days[k];
+      vline.attr('x1', x(d.t)).attr('x2', x(d.t)).attr('visibility', 'visible');
+      tip.replaceChildren();
+      const h = document.createElement('div'); h.textContent = `${d3.utcFormat('%Y-%m-%d')(d.t)} · 종가 ${usd(d.close)}`; tip.append(h);
+      for (const s of [...series].sort((a, b) => b.pts[k].v - a.pts[k].v)) {
+        const r = document.createElement('div'); r.textContent = `${s.p.name} ${sPct(s.pts[k].v)}`; r.style.color = PCOL(s.i); tip.append(r);
+      }
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = Math.min(Math.max(x(d.t) + 12, 0), W - tw) + 'px'; tip.style.top = m.top + 'px';
+    })
+    .on('pointerleave', () => { tip.hidden = true; vline.attr('visibility', 'hidden'); });
+  // keep grid/axes under the hover rect
+  svg.selectAll('g').lower();
+}
+
+function draw() { if (DATA) { drawReturns(); drawChart(); drawRange(); } }
 let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
 
 function renderWhatIf() {
