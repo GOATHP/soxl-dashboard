@@ -258,6 +258,7 @@ function applyQuote(live) {
   LIVE = live;
   const d = withOverride(live);
   $('manual-badge').hidden = !(OVERRIDE > 0);
+  if (OVERRIDE > 0) $('manual-badge').textContent = '직접 입력한 가격' + (OVR_AT ? ' · ' + d3.timeFormat('%-m/%-d %H:%M')(OVR_AT) + ' 정정' : '') + (SHARED ? ' (모두에게 적용)' : '');
   $('live-badge').hidden = OVERRIDE > 0 || live.source !== 'Finnhub';
   $('ovr-reset').hidden = !(OVERRIDE > 0);
   DATA = d;
@@ -441,6 +442,7 @@ function fallbackLocal(why) {
     renderAll();
     firebase.auth().signInAnonymously().then((cred) => {
       SHARED = {db, uid: cred.user.uid};
+      watchSharedPrice();
       db.collection('positions').orderBy('createdAt').onSnapshot((snap) => {
         sharedStatus('');
         const cur = positions[selected];
@@ -462,10 +464,33 @@ $('amt-cur').addEventListener('change', renderCouldHave);
 $('amt-form').addEventListener('submit', (e) => { e.preventDefault(); renderCouldHave(); });
 $('amt-clear').addEventListener('click', () => { $('amt-input').value = ''; renderCouldHave(); });
 
+let OVR_AT = null;
+function priceDoc() { return SHARED ? SHARED.db.collection('settings').doc('price') : null; }
 $('ovr-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const v = parseFloat($('ovr-input').value);
-  if (!(v > 0) || !LIVE) return;
-  OVERRIDE = v; applyQuote(LIVE);
+  const v = Math.round(parseFloat($('ovr-input').value) * 100) / 100;
+  if (!(v > 0 && v < 100000)) return;
+  const doc = priceDoc();
+  if (doc) {
+    doc.set({price: v, at: firebase.firestore.FieldValue.serverTimestamp()})
+      .catch(() => sharedStatus('정정한 가격을 저장하지 못했습니다 (Firestore 규칙을 확인하세요).'));
+    return;
+  }
+  OVERRIDE = v; OVR_AT = new Date(); if (LIVE) applyQuote(LIVE);
 });
-$('ovr-reset').addEventListener('click', () => { OVERRIDE = null; $('ovr-input').value = ''; if (LIVE) applyQuote(LIVE); });
+$('ovr-reset').addEventListener('click', () => {
+  $('ovr-input').value = '';
+  const doc = priceDoc();
+  if (doc) { doc.delete().catch(() => sharedStatus('되돌리지 못했습니다.')); return; }
+  OVERRIDE = null; OVR_AT = null; if (LIVE) applyQuote(LIVE);
+});
+function watchSharedPrice() {
+  const doc = priceDoc(); if (!doc) return;
+  doc.onSnapshot((d) => {
+    const v = d.exists ? +d.data().price : NaN;
+    OVERRIDE = v > 0 ? v : null;
+    const at = d.exists && d.data().at && d.data().at.toDate ? d.data().at.toDate() : null;
+    OVR_AT = OVERRIDE ? (at || new Date()) : null;
+    if (LIVE) applyQuote(LIVE);
+  }, (err) => console.error(err));
+}
