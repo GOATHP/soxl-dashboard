@@ -80,6 +80,8 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); font-weig
 .bar.sel .fill { opacity: 1; outline: 2px solid var(--fg); outline-offset: 1px; }
 .bar .val { text-align: right; font-family: var(--mono); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .live { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--ok); color: var(--ok); margin-left: 6px; }
+.tv { height: 480px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+@media (max-width: 560px) { .tv { height: 380px; } }
 .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 footer { font-size: 12px; color: var(--muted); }
 </style>
@@ -104,6 +106,12 @@ footer { font-size: 12px; color: var(--muted); }
       <span class="sub">보유 주식수 × 전일 대비 변동</span></div>
   </div>
 
+
+  <section id="live-chart">
+    <h2>SOXL 실시간 차트</h2>
+    <div class="tv" id="tv-box"></div>
+    <p class="note">TradingView 차트입니다. 기간(1일, 1주 등)을 바꾸거나 확대해서 볼 수 있습니다. 미국 거래소 시세는 지연될 수 있습니다.</p>
+  </section>
 
   <section id="compare">
     <h2>보유자 비교</h2>
@@ -165,5 +173,22 @@ footer { font-size: 12px; color: var(--muted); }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="app.js"></script>
+<script>
+(function () {
+  const box = document.getElementById('tv-box');
+  if (!box) return;
+  const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const wrap = document.createElement('div'); wrap.className = 'tradingview-widget-container'; wrap.style.height = '100%';
+  const inner = document.createElement('div'); inner.className = 'tradingview-widget-container__widget'; inner.style.height = '100%';
+  const sc = document.createElement('script');
+  sc.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  sc.async = true;
+  sc.textContent = JSON.stringify({
+    autosize: true, symbol: 'AMEX:SOXL', interval: 'D', timezone: 'Asia/Seoul', theme: dark ? 'dark' : 'light',
+    style: '1', locale: 'kr', allow_symbol_change: true, hide_side_toolbar: true, range: '6M', support_host: 'https://www.tradingview.com'
+  });
+  wrap.append(inner, sc); box.append(wrap);
+})();
+</script>
 </body>
 </html>
