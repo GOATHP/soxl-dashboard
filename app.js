@@ -80,6 +80,10 @@ function renderTable() {
     }
     const td = document.createElement('td');
     if (!SHARED || (p.uid && p.uid === SHARED.uid)) {
+      const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'btn x'; ed.textContent = '수정';
+      ed.setAttribute('aria-label', p.name + ' 수정');
+      ed.addEventListener('click', (e) => { e.stopPropagation(); startEdit(i); });
+      td.append(ed, ' ');
       const b = document.createElement('button'); b.type = 'button'; b.className = 'btn x'; b.textContent = '삭제';
       b.setAttribute('aria-label', p.name + ' 삭제');
       b.addEventListener('click', (e) => {
@@ -124,10 +128,31 @@ function renderBars() {
 
 function renderAll() { renderTable(); renderBars(); renderSelected(); draw(); }
 
+let editing = -1;
+function startEdit(i) {
+  const p = positions[i]; if (!p) return;
+  editing = i; selected = i;
+  $('f-name').value = p.name; $('f-shares').value = p.shares; $('f-avg').value = p.avg;
+  $('add-btn').textContent = '저장'; $('cancel-edit').hidden = false;
+  $('f-shares').focus(); renderAll();
+}
+function stopEdit() { editing = -1; $('add-form').reset(); $('add-btn').textContent = '추가'; $('cancel-edit').hidden = true; }
+$('cancel-edit').addEventListener('click', stopEdit);
+
 $('add-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const p = clean([{name: $('f-name').value, shares: $('f-shares').value, avg: $('f-avg').value}])[0];
   if (!p) return;
+  if (editing >= 0 && positions[editing]) {
+    const cur = positions[editing];
+    if (SHARED) {
+      SHARED.db.collection('positions').doc(cur.id).update({name: p.name, shares: p.shares, avg: p.avg})
+        .then(stopEdit, () => set('copy-msg', '수정하지 못했습니다.'));
+      return;
+    }
+    positions[editing] = p; selected = editing; save(); stopEdit(); renderAll();
+    return;
+  }
   if (SHARED) {
     SHARED.db.collection('positions').add({...p, uid: SHARED.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp()})
       .then(() => { e.target.reset(); pendingSelect = p.name; }, () => set('copy-msg', '저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'));
