@@ -67,7 +67,7 @@ function renderTable() {
   const body = $('cmp-body'); body.replaceChildren();
   if (!positions.length) {
     const tr = document.createElement('tr'); const td = document.createElement('td');
-    td.colSpan = 9; td.className = 'note'; td.textContent = '위에서 이름, 주식수, 평단을 넣고 첫 보유자를 추가하세요.';
+    td.colSpan = 9; td.className = 'note'; td.textContent = SHARED ? '아직 아무도 없습니다. 위에서 이름, 주식수, 평단을 넣어 첫 보유자가 되어 보세요.' : '위에서 이름, 주식수, 평단을 넣고 첫 보유자를 추가하세요.';
     tr.append(td); body.append(tr); return;
   }
   const price = DATA ? DATA.price : null;
@@ -419,17 +419,30 @@ let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTime
 
 
 let pendingSelect = null;
+function sharedStatus(msg) {
+  const el = $('shared-status'); if (!el) return;
+  el.textContent = msg || ''; el.hidden = !msg;
+}
+function fallbackLocal(why) {
+  SHARED = null;
+  $('mode-local').hidden = false; $('mode-shared').hidden = true; $('link-actions').hidden = false;
+  sharedStatus(why + ' 지금은 이 브라우저에만 저장됩니다.');
+  positions = load(); selected = 0; renderAll();
+}
 (function initShared() {
   const cfg = window.FIREBASE_CONFIG;
   if (!cfg || !window.firebase) return;
   try {
     firebase.initializeApp(cfg);
     const db = firebase.firestore();
-    positions = []; selected = 0; renderAll();
+    positions = []; selected = 0;
     $('mode-local').hidden = true; $('mode-shared').hidden = false; $('link-actions').hidden = true;
+    sharedStatus('공유 목록을 불러오는 중…');
+    renderAll();
     firebase.auth().signInAnonymously().then((cred) => {
       SHARED = {db, uid: cred.user.uid};
       db.collection('positions').orderBy('createdAt').onSnapshot((snap) => {
+        sharedStatus('');
         const cur = positions[selected];
         positions = snap.docs.map((d) => ({id: d.id, ...d.data()}))
           .filter((p) => p.name && p.shares > 0 && p.avg > 0)
@@ -439,9 +452,9 @@ let pendingSelect = null;
         else idx = cur ? positions.findIndex((p) => p.id === cur.id) : 0;
         selected = idx >= 0 ? idx : 0;
         renderAll();
-      }, () => set('copy-msg', '공유 목록을 불러오지 못했습니다.'));
-    }, () => set('copy-msg', '공유 목록에 연결하지 못했습니다.'));
-  } catch (e) { console.error(e); }
+      }, (err) => { console.error(err); fallbackLocal('공유 목록을 읽지 못했습니다 (Firestore 규칙을 확인하세요).'); });
+    }, (err) => { console.error(err); fallbackLocal('공유 목록에 연결하지 못했습니다 (익명 로그인과 승인된 도메인을 확인하세요).'); });
+  } catch (e) { console.error(e); fallbackLocal('공유 목록을 쓸 수 없습니다.'); }
 })();
 
 $('amt-input').addEventListener('input', renderCouldHave);

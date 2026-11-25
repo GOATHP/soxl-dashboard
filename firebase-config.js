@@ -1,10 +1,9 @@
-// Firebase 웹 앱 설정을 여기에 붙여 넣으면 모두가 같은 비교표를 공유합니다.
-// 비워 두면 각자 브라우저에만 저장되고 링크로 공유하는 방식으로 동작합니다.
-window.FIREBASE_CONFIG = null;
-// 예시:
-// window.FIREBASE_CONFIG = {
-//   apiKey: "...",
-//   authDomain: "....firebaseapp.com",
-//   projectId: "...",
-//   appId: "..."
-// };
+// Firebase 웹 앱 설정. 비워 두면 각자 브라우저에만 저장되고 링크로 공유합니다.
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDvT3Y1LS69L_WDUtinhbKXSo8UWhL7hYc",
+  authDomain: "soxl-d76cc.firebaseapp.com",
+  projectId: "soxl-d76cc",
+  storageBucket: "soxl-d76cc.firebasestorage.app",
+  messagingSenderId: "1025948312198",
+  appId: "1:1025948312198:web:17a6f06024de15c140a707"
+};

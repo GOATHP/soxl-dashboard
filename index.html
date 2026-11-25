@@ -97,6 +97,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); font-weig
 .amtform { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 10px; align-items: end; max-width: 640px; }
 .amtform input { font-size: 17px; padding: 8px 10px; }
 .sel { font: inherit; font-size: 15px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); width: 100%; }
+.note.bad, #shared-status { color: var(--warn); }
 .goods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 640px) { .goods { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .good { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
@@ -156,6 +157,7 @@ footer { font-size: 12px; color: var(--muted); }
       <button type="submit" class="btn primary" id="add-btn">추가</button>
       <button type="button" class="btn" id="cancel-edit" hidden>취소</button>
     </form>
+    <p class="note" id="shared-status" hidden></p>
     <div class="bars" id="bars" aria-label="보유자별 수익률 막대 그래프"></div>
     <div class="tablewrap">
       <table id="cmp-table">
@@ -212,12 +214,12 @@ footer { font-size: 12px; color: var(--muted); }
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script src="config.js?v=20261125c"></script>
-<script src="firebase-config.js"></script>
+<script src="config.js?v=20261125d"></script>
+<script src="firebase-config.js?v=20261125d"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="app.js?v=20261125c"></script>
+<script src="app.js?v=20261125d"></script>
 <script>
 (function () {
   const box = document.getElementById('tv-box');
