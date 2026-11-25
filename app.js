@@ -53,7 +53,6 @@ function renderSelected() {
   set('lede-be', c.be ? sPct(c.be) : '없음(이미 평단 위)');
   set('mv', usd(c.mv)); set('mv-shares', fmtShares(p.shares)); set('cost', usd(c.cost));
   set('daypnl', sUsd(p.shares * DATA.change), DATA.change);
-  renderWhatIf();
 }
 
 function renderTable() {
@@ -230,7 +229,6 @@ function liveQuote(d) {
       if (!(q && q.c > 0 && q.t)) return d;
       const day = new Date(q.t * 1000).toISOString().slice(0, 10);
       const daily = d.daily.filter((r) => r.date < day).concat([{date: day, close: q.c}]);
-      $('live-badge').hidden = false;
       $('refresh-note').textContent = '페이지를 여는 동안 1분마다 새로 불러옵니다.';
       return {...d, price: q.c, prevClose: q.pc, change: q.d, changePct: q.dp,
         asOf: new Date(q.t * 1000).toISOString(), source: 'Finnhub', daily,
@@ -240,14 +238,27 @@ function liveQuote(d) {
 }
 
 let BASE = null;
-function applyQuote(d) {
+let LIVE = null;
+let OVERRIDE = null;
+function withOverride(d) {
+  if (!(OVERRIDE > 0)) return d;
+  const daily = d.daily.slice(0, -1).concat([{...d.daily[d.daily.length - 1], close: OVERRIDE}]);
+  return {...d, price: OVERRIDE, change: OVERRIDE - d.prevClose, changePct: (OVERRIDE / d.prevClose - 1) * 100, daily,
+    low52: Math.min(d.low52, OVERRIDE), high52: Math.max(d.high52, OVERRIDE)};
+}
+function applyQuote(live) {
+  LIVE = live;
+  const d = withOverride(live);
+  $('manual-badge').hidden = !(OVERRIDE > 0);
+  $('live-badge').hidden = OVERRIDE > 0 || live.source !== 'Finnhub';
+  $('ovr-reset').hidden = !(OVERRIDE > 0);
   DATA = d;
   const p = d.price;
   set('price', usd(p)); set('chg', sUsd(d.change), d.change); set('chgpct', sPct(d.changePct), d.changePct);
   set('low52', usd(d.low52)); set('high52', usd(d.high52));
   set('rangepos', d3.format('.1f')((p - d.low52) / (d.high52 - d.low52) * 100) + '%');
   const kst = new Date(new Date(d.asOf).getTime() + 9 * 3600e3);
-  set('asof', d3.utcFormat('%Y년 %-m월 %-d일 %H:%M')(kst)); set('src', d.source);
+  set('asof', d3.utcFormat('%Y년 %-m월 %-d일 %H:%M')(kst)); set('src', OVERRIDE > 0 ? '직접 입력 (' + d.source + ' 대신)' : d.source);
   renderAll();
 }
 fetch('data/soxl.json', {cache: 'no-cache'}).then((r) => r.json()).then((d) => { BASE = d; return liveQuote(d); }).then((d) => {
@@ -397,20 +408,7 @@ function drawReturns() {
 function draw() { if (DATA) { drawReturns(); drawChart(); drawRange(); } }
 let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
 
-function renderWhatIf() {
-  const v = parseFloat($('whatif-price').value), out = $('whatif'), p = positions[selected];
-  out.replaceChildren();
-  if (!(v > 0) || !p) { const n = document.createElement('p'); n.className = 'note'; n.textContent = '가격을 입력하면 선택한 사람의 평가금액, 손익, 수익률이 여기에 나옵니다.'; out.append(n); return; }
-  const c = calc(p, v);
-  for (const [k, val, tone] of [['대상', p.name, 0], ['평가금액', usd(c.mv), 0], ['평가손익', sUsd(c.pnl), c.pnl], ['수익률', sPct(c.pct), c.pct],
-    ['본전까지', c.be ? sPct(c.be) : '도달', 0]]) {
-    const r = document.createElement('div'); r.className = 'row';
-    const a = document.createElement('span'); a.textContent = k;
-    const b = document.createElement('span'); b.textContent = val; b.className = tone < 0 ? 'bad' : tone > 0 ? 'ok' : '';
-    r.append(a, b); out.append(r);
-  }
-}
-$('whatif-price').addEventListener('input', renderWhatIf);
+
 
 let pendingSelect = null;
 (function initShared() {
@@ -442,3 +440,11 @@ $('amt-input').addEventListener('input', renderCouldHave);
 $('amt-cur').addEventListener('change', renderCouldHave);
 $('amt-form').addEventListener('submit', (e) => { e.preventDefault(); renderCouldHave(); });
 $('amt-clear').addEventListener('click', () => { $('amt-input').value = ''; renderCouldHave(); });
+
+$('ovr-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = parseFloat($('ovr-input').value);
+  if (!(v > 0) || !LIVE) return;
+  OVERRIDE = v; applyQuote(LIVE);
+});
+$('ovr-reset').addEventListener('click', () => { OVERRIDE = null; $('ovr-input').value = ''; if (LIVE) applyQuote(LIVE); });

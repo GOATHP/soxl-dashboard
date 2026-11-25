@@ -31,6 +31,7 @@
     --accent: #7c9cff; --grid: #222835; --ref: #8a93a3; --bad: #ff6b66; --ok: #4cc884; --warn: #e5ad3b; color-scheme: dark; }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
 .wrap { max-width: 960px; margin: 0 auto; padding-block: 32px 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -103,6 +104,10 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); font-weig
 .good .n { font-family: var(--mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .good .what { font-size: 13px; }
 .good .pr { font-size: 11px; color: var(--muted); }
+.override { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.override .label { font-size: 13px; font-weight: 600; color: var(--fg); }
+.override input { width: 15rem; max-width: 100%; font-size: 15px; padding: 7px 10px; flex: 1 1 10rem; }
+.live.manual { border-color: var(--warn); color: var(--warn); }
 .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 footer { font-size: 12px; color: var(--muted); }
 </style>
@@ -112,8 +117,14 @@ footer { font-size: 12px; color: var(--muted); }
   <header>
     <div class="eyebrow">SOXL · Direxion 반도체 3배 레버리지 ETF</div>
     <h1>SOXL 포지션 비교</h1>
-    <p class="lede"><b id="sel-name">—</b>님은 <span id="sel-shares" class="num">—</span>주를 평단 <span id="sel-avg" class="num">—</span>에 보유 중이며, 최근 종가 기준 평가손익은 <b id="lede-pnl" class="num">—</b> (<b id="lede-pct" class="num">—</b>)입니다. 본전까지 필요한 상승률은 <b id="lede-be" class="num">—</b>입니다.</p>
-    <p class="asof">시세 기준: <span id="asof">—</span> (한국시간)<span class="live" id="live-badge" hidden>실시간</span>. 출처: <span id="src">—</span>. <span id="refresh-note">평일 미국 장 마감 후 하루 한 번 자동 갱신됩니다.</span></p>
+    <p class="lede"><b id="sel-name">—</b>님은 <span id="sel-shares" class="num">—</span>주를 평단 <span id="sel-avg" class="num">—</span>에 보유 중이며, 현재가 기준 평가손익은 <b id="lede-pnl" class="num">—</b> (<b id="lede-pct" class="num">—</b>)입니다. 본전까지 필요한 상승률은 <b id="lede-be" class="num">—</b>입니다.</p>
+    <p class="asof">시세 기준: <span id="asof">—</span> (한국시간)<span class="live" id="live-badge" hidden>실시간</span><span class="live manual" id="manual-badge" hidden>직접 입력한 가격</span>. 출처: <span id="src">—</span>. <span id="refresh-note">평일 미국 장 마감 후 하루 한 번 자동 갱신됩니다.</span></p>
+    <form class="override" id="ovr-form" autocomplete="off">
+      <label for="ovr-input" class="label">현재가 정정</label>
+      <input id="ovr-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="예: 33.39 (토스 주간거래 가격 등)">
+      <button type="submit" class="btn primary">적용</button>
+      <button type="button" class="btn" id="ovr-reset" hidden>실시간 가격으로</button>
+    </form>
   </header>
 
   <div class="tiles">
@@ -191,15 +202,6 @@ footer { font-size: 12px; color: var(--muted); }
     <p class="note">52주 최저 <span id="low52" class="num">—</span> · 최고 <span id="high52" class="num">—</span>. 현재가는 범위 하단에서 <span id="rangepos" class="num">—</span> 지점에 있습니다.</p>
   </section>
 
-  <section>
-    <h2>현재가 직접 입력해서 계산하기</h2>
-    <p class="note">증권 앱에서 본 지금 가격을 넣으면 선택한 사람의 손익을 바로 계산합니다.</p>
-    <div class="calc">
-      <label class="field" for="whatif-price"><span class="label">SOXL 가격 (USD)</span>
-        <input id="whatif-price" type="number" inputmode="decimal" step="0.01" min="0" placeholder="예: 33.39"></label>
-      <div id="whatif"><p class="note">가격을 입력하면 평가금액, 손익, 수익률이 여기에 나옵니다.</p></div>
-    </div>
-  </section>
 
   <section class="warnbox">
     <h2>3배 레버리지 ETF라는 점</h2>
