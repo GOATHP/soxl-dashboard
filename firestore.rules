@@ -18,13 +18,13 @@ service cloud.firestore {
         && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
         && request.resource.data.shares is number && request.resource.data.shares > 0 && request.resource.data.shares < 10000000
         && request.resource.data.avg is number && request.resource.data.avg > 0 && request.resource.data.avg < 100000;
-      allow update: if request.auth != null && resource.data.uid == request.auth.uid
+      allow update: if request.auth != null
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'shares', 'avg'])
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
         && request.resource.data.shares is number && request.resource.data.shares > 0
         && request.resource.data.avg is number && request.resource.data.avg > 0;
-      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null;
     }
   }
 }

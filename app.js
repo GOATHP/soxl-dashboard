@@ -86,7 +86,7 @@ function renderTable() {
       tr.append(td);
     }
     const td = document.createElement('td');
-    if (!SHARED || (p.uid && p.uid === SHARED.uid)) {
+    {
       const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'btn x'; ed.textContent = '수정';
       ed.setAttribute('aria-label', p.name + ' 수정');
       ed.addEventListener('click', (e) => { e.stopPropagation(); startEdit(i); });
