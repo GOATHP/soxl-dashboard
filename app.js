@@ -136,6 +136,10 @@ const GOODS = [
   {ic: '🎧', what: '에어팟 프로', unit: '개', price: 359000},
   {ic: '📱', what: '아이폰 (기본 모델)', unit: '대', price: 1250000},
   {ic: '✈️', what: '도쿄 왕복 항공권', unit: '번', price: 350000},
+  {ic: '🚙', what: '경차 (캐스퍼급)', unit: '대', price: 14000000},
+  {ic: '🚗', what: '준중형 (아반떼급)', unit: '대', price: 21000000},
+  {ic: '🚘', what: '제네시스 G80', unit: '대', price: 58000000},
+  {ic: '🏎️', what: '포르쉐 911', unit: '대', price: 170000000},
 ];
 const won = (v) => '₩' + d3.format(',')(Math.round(v));
 function renderCouldHave() {
@@ -161,7 +165,7 @@ function renderCouldHave() {
     const n = amt / g.price;
     const d = document.createElement('div'); d.className = 'good';
     const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = g.ic; ic.setAttribute('aria-hidden', 'true');
-    const num = document.createElement('span'); num.className = 'n'; num.textContent = (n >= 10 ? d3.format(',')(Math.floor(n)) : d3.format('.1f')(n)) + g.unit;
+    const num = document.createElement('span'); num.className = 'n'; num.textContent = (n >= 10 ? d3.format(',')(Math.floor(n)) : n >= 1 ? d3.format('.1f')(n) : n >= 0.01 ? d3.format('.2f')(n) : d3.format('.3f')(n)) + g.unit;
     const w = document.createElement('span'); w.className = 'what'; w.textContent = g.what;
     const pr = document.createElement('span'); pr.className = 'pr'; pr.textContent = `개당 약 ${won(g.price)}`;
     d.append(ic, num, w, pr); box.append(d);
