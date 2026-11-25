@@ -126,7 +126,44 @@ function renderBars() {
   }
 }
 
-function renderAll() { renderTable(); renderBars(); renderSelected(); draw(); }
+const KRW = 1400;
+const GOODS = [
+  {ic: '🍗', what: '치킨', unit: '마리', price: 23000},
+  {ic: '☕', what: '스타벅스 아메리카노', unit: '잔', price: 4700},
+  {ic: '🍲', what: '국밥', unit: '그릇', price: 10000},
+  {ic: '🎬', what: '영화 관람', unit: '편', price: 15000},
+  {ic: '📺', what: '넷플릭스 프리미엄', unit: '개월', price: 17000},
+  {ic: '🎧', what: '에어팟 프로', unit: '개', price: 359000},
+  {ic: '📱', what: '아이폰 (기본 모델)', unit: '대', price: 1250000},
+  {ic: '✈️', what: '도쿄 왕복 항공권', unit: '번', price: 350000},
+];
+const won = (v) => '₩' + d3.format(',')(Math.round(v));
+function renderCouldHave() {
+  const box = $('goods'); if (!box) return;
+  box.replaceChildren();
+  const p = positions[selected];
+  if (!DATA || !p) { set('ch-lede', '보유자를 추가하면 여기에 나옵니다.'); set('ch-total', ''); return; }
+  const c = calc(p, DATA.price);
+  const amt = Math.abs(c.pnl) * KRW;
+  const lost = c.pnl < 0;
+  set('ch-title', lost ? '그 돈으로 할 수 있었던 것' : '번 돈으로 할 수 있는 것');
+  set('ch-lede', lost ? `${p.name}님이 지금까지 잃은 ${won(amt)}이면 이만큼 할 수 있었어요.`
+                      : `${p.name}님이 지금까지 번 ${won(amt)}이면 이만큼 할 수 있어요.`);
+  for (const g of GOODS) {
+    const n = amt / g.price;
+    const d = document.createElement('div'); d.className = 'good';
+    const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = g.ic; ic.setAttribute('aria-hidden', 'true');
+    const num = document.createElement('span'); num.className = 'n'; num.textContent = (n >= 10 ? d3.format(',')(Math.floor(n)) : d3.format('.1f')(n)) + g.unit;
+    const w = document.createElement('span'); w.className = 'what'; w.textContent = g.what;
+    const pr = document.createElement('span'); pr.className = 'pr'; pr.textContent = `개당 약 ${won(g.price)}`;
+    d.append(ic, num, w, pr); box.append(d);
+  }
+  const totalLoss = positions.reduce((s, q) => s + Math.min(0, calc(q, DATA.price).pnl), 0) * -KRW;
+  set('ch-total', positions.length > 1 && totalLoss > 0
+    ? `비교 목록 전체가 잃은 돈은 ${won(totalLoss)}, 치킨 ${d3.format(',')(Math.floor(totalLoss / 23000))}마리입니다.` : '');
+}
+
+function renderAll() { renderTable(); renderBars(); renderSelected(); renderCouldHave(); draw(); }
 
 let editing = -1;
 function startEdit(i) {
