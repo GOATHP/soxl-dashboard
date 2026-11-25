@@ -9,6 +9,7 @@ const set = (id, text, tone) => { const el = $(id); if (!el) return; el.textCont
   if (tone !== undefined) { el.classList.toggle('bad', tone < 0); el.classList.toggle('ok', tone > 0); } };
 
 let DATA = null;
+let SHARED = null; // {db, uid}
 let positions = load();
 let selected = 0;
 
@@ -30,7 +31,7 @@ function load() {
   try { const v = clean(JSON.parse(localStorage.getItem(KEY))); if (v.length) return v; } catch (e) {}
   return DEFAULT.slice();
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(positions)); } catch (e) {} }
+function save() { if (SHARED) return; try { localStorage.setItem(KEY, JSON.stringify(positions)); } catch (e) {} }
 function shareUrl() {
   const enc = positions.map((p) => [p.name.replace(/[,;]/g, ' '), p.shares, p.avg].join(',')).join(';');
   return location.origin + location.pathname + '#p=' + encodeURIComponent(enc);
@@ -78,10 +79,17 @@ function renderTable() {
       tr.append(td);
     }
     const td = document.createElement('td');
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn x'; b.textContent = '삭제';
-    b.setAttribute('aria-label', p.name + ' 삭제');
-    b.addEventListener('click', (e) => { e.stopPropagation(); positions.splice(i, 1); if (selected >= positions.length) selected = 0; save(); renderAll(); });
-    td.append(b); tr.append(td);
+    if (!SHARED || (p.uid && p.uid === SHARED.uid)) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn x'; b.textContent = '삭제';
+      b.setAttribute('aria-label', p.name + ' 삭제');
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (SHARED) { SHARED.db.collection('positions').doc(p.id).delete().catch(() => set('copy-msg', '삭제하지 못했습니다.')); return; }
+        positions.splice(i, 1); if (selected >= positions.length) selected = 0; save(); renderAll();
+      });
+      td.append(b);
+    }
+    tr.append(td);
     tr.tabIndex = 0;
     const pick = () => { selected = i; renderAll(); };
     tr.addEventListener('click', pick);
@@ -96,6 +104,11 @@ $('add-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const p = clean([{name: $('f-name').value, shares: $('f-shares').value, avg: $('f-avg').value}])[0];
   if (!p) return;
+  if (SHARED) {
+    SHARED.db.collection('positions').add({...p, uid: SHARED.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp()})
+      .then(() => { e.target.reset(); pendingSelect = p.name; }, () => set('copy-msg', '저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'));
+    return;
+  }
   positions.push(p); selected = positions.length - 1; save();
   e.target.reset(); renderAll();
 });
@@ -107,7 +120,7 @@ $('copy-link').addEventListener('click', () => {
   else done(url);
 });
 
-window.addEventListener('hashchange', () => { const h = fromHash(); if (h && h.length) { positions = h; selected = 0; save(); renderAll(); } });
+window.addEventListener('hashchange', () => { if (window.FIREBASE_CONFIG) return; const h = fromHash(); if (h && h.length) { positions = h; selected = 0; save(); renderAll(); } });
 
 fetch('data/soxl.json', {cache: 'no-cache'}).then((r) => r.json()).then((d) => {
   DATA = d;
@@ -204,3 +217,29 @@ function renderWhatIf() {
   }
 }
 $('whatif-price').addEventListener('input', renderWhatIf);
+
+let pendingSelect = null;
+(function initShared() {
+  const cfg = window.FIREBASE_CONFIG;
+  if (!cfg || !window.firebase) return;
+  try {
+    firebase.initializeApp(cfg);
+    const db = firebase.firestore();
+    positions = []; selected = 0; renderAll();
+    $('mode-local').hidden = true; $('mode-shared').hidden = false; $('link-actions').hidden = true;
+    firebase.auth().signInAnonymously().then((cred) => {
+      SHARED = {db, uid: cred.user.uid};
+      db.collection('positions').orderBy('createdAt').onSnapshot((snap) => {
+        const cur = positions[selected];
+        positions = snap.docs.map((d) => ({id: d.id, ...d.data()}))
+          .filter((p) => p.name && p.shares > 0 && p.avg > 0)
+          .map((p) => ({id: p.id, uid: p.uid, name: String(p.name).slice(0, 20), shares: +p.shares, avg: +p.avg}));
+        let idx = pendingSelect ? positions.map((p) => p.name).lastIndexOf(pendingSelect) : -1;
+        if (idx >= 0) pendingSelect = null;
+        else idx = cur ? positions.findIndex((p) => p.id === cur.id) : 0;
+        selected = idx >= 0 ? idx : 0;
+        renderAll();
+      }, () => set('copy-msg', '공유 목록을 불러오지 못했습니다.'));
+    }, () => set('copy-msg', '공유 목록에 연결하지 못했습니다.'));
+  } catch (e) { console.error(e); }
+})();

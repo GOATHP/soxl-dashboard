@@ -95,7 +95,8 @@ footer { font-size: 12px; color: var(--muted); }
 
   <section id="compare">
     <h2>보유자 비교</h2>
-    <p class="note">이름, 주식수, 평단을 넣고 추가하면 같은 시세로 손익을 비교합니다. 줄을 누르면 위 카드가 그 사람 기준으로 바뀝니다. 목록은 이 브라우저에만 저장되고, "비교 링크 복사"로 만든 링크를 보내면 상대도 같은 목록을 볼 수 있습니다.</p>
+    <p class="note" id="mode-local">이름, 주식수, 평단을 넣고 추가하면 같은 시세로 손익을 비교합니다. 줄을 누르면 위 카드가 그 사람 기준으로 바뀝니다. 목록은 이 브라우저에만 저장되고, "비교 링크 복사"로 만든 링크를 보내면 상대도 같은 목록을 볼 수 있습니다.</p>
+    <p class="note" id="mode-shared" hidden>여기서 추가한 포지션은 이 페이지를 여는 모든 사람에게 같은 표로 보입니다. 줄을 누르면 위 카드가 그 사람 기준으로 바뀝니다. 내가 추가한 줄만 삭제할 수 있습니다.</p>
     <form id="add-form" class="addform" autocomplete="off">
       <label class="field" for="f-name"><span class="label">이름</span><input id="f-name" type="text" maxlength="20" placeholder="예: 민수" required></label>
       <label class="field" for="f-shares"><span class="label">주식수</span><input id="f-shares" type="number" step="any" min="0" inputmode="decimal" placeholder="예: 50" required></label>
@@ -108,7 +109,7 @@ footer { font-size: 12px; color: var(--muted); }
         <tbody id="cmp-body"></tbody>
       </table>
     </div>
-    <div class="actions">
+    <div class="actions" id="link-actions">
       <button type="button" class="btn" id="copy-link">비교 링크 복사</button>
       <span class="note" id="copy-msg" aria-live="polite"></span>
     </div>
@@ -145,6 +146,10 @@ footer { font-size: 12px; color: var(--muted); }
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
