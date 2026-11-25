@@ -25,10 +25,18 @@ function fromHash() {
     return clean(decodeURIComponent(m[1]).split(';').map((s) => { const [name, shares, avg] = s.split(','); return {name, shares, avg}; }));
   } catch (e) { return null; }
 }
+function stored() { try { return clean(JSON.parse(localStorage.getItem(KEY))); } catch (e) { return []; } }
 function load() {
-  const h = fromHash();
-  if (h && h.length) return h;
-  try { const v = clean(JSON.parse(localStorage.getItem(KEY))); if (v.length) return v; } catch (e) {}
+  const h = fromHash() || [];
+  const s = stored();
+  // link entries win for the same name; entries saved in this browser are never dropped
+  const names = new Set(h.map((p) => p.name));
+  const merged = h.concat(s.filter((p) => !names.has(p.name)));
+  if (merged.length) {
+    try { localStorage.setItem(KEY, JSON.stringify(merged)); } catch (e) {}
+    if (h.length) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+    return merged;
+  }
   return DEFAULT.slice();
 }
 function save() { if (SHARED) return; try { localStorage.setItem(KEY, JSON.stringify(positions)); } catch (e) {} }
@@ -218,7 +226,7 @@ $('copy-link').addEventListener('click', () => {
   else done(url);
 });
 
-window.addEventListener('hashchange', () => { if (window.FIREBASE_CONFIG) return; const h = fromHash(); if (h && h.length) { positions = h; selected = 0; save(); renderAll(); } });
+window.addEventListener('hashchange', () => { if (window.FIREBASE_CONFIG) return; const h = fromHash(); if (h && h.length) { positions = load(); selected = 0; renderAll(); } });
 
 function liveQuote(d) {
   const key = window.FINNHUB_KEY;
