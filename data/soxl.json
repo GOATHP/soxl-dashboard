@@ -1,18 +1,14 @@
 {
  "symbol": "SOXL",
- "price": 32.02,
- "prevClose": 32.6,
- "change": -0.58,
- "changePct": -1.78,
- "asOf": "2026-11-25T21:00:00Z",
+ "price": 36.57,
+ "prevClose": 32.02,
+ "change": 4.55,
+ "changePct": 14.21,
+ "asOf": "2026-11-27T18:00:01Z",
  "low52": 24.61,
  "high52": 302.0,
  "source": "Yahoo Finance",
  "daily": [
-  {
-   "date": "2026-05-22",
-   "close": 190.56
-  },
   {
    "date": "2026-05-26",
    "close": 225.79
@@ -528,6 +524,10 @@
   {
    "date": "2026-11-25",
    "close": 32.02
+  },
+  {
+   "date": "2026-11-27",
+   "close": 36.57
   }
  ]
 }
